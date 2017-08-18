@@ -32,7 +32,7 @@ example: <br />
 ![All Fingertips](https://github.com/augcog/OpenARK_test/blob/master/all_fingertips.PNG) <br />
 and if you want to only visualize the visible fingertips use: `python vis_visible_fingertips.py` <br />
 example: <br />
-![Visible Fingertips] (https://github.com/augcog/OpenARK_test/blob/master/visible_fingertips.PNG) <br />
+![Visible Fingertips](https://github.com/augcog/OpenARK_test/blob/master/visible_fingertips.PNG) <br />
 
 Note: CVAR dataset has folders named P1, P3, P4, P5, P6, and P7. P3 folder includes two hands however only the 21 joints information for the right hand is given. In the modified dataset, we have provided the user with only the depth image for the right hand by masking the left hand. CVAR dataset images are of the resolution 320*240 pixels. The camera intrinsics for the CVAR dataset collected by Creative Senz3D camera is as follows: *Fx: 224.501999*, *Fy: 230.494003*, *Cx: 160.000000*, and *Cy: 120.000000*. <br />
 

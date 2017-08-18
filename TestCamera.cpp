@@ -44,11 +44,9 @@ Create xyzMap, zMap, ampMap, and flagMap from sensor input
 ***/
 void TestCamera::update()
 {
-	
 	initilizeImages();
 	fillInAmps();
 	fillInZCoords();
-
 }
 
 /***
@@ -56,14 +54,12 @@ Reads the depth data from the sensor and fills in the matrix
 ***/
 void TestCamera::fillInZCoords()
 {	
-
-
 	vector<Point3f>  xyzBuffer;
 	auto depth_image = imread(file_name, IMREAD_ANYDEPTH);
 	//if you want to test only a single image uncomment below line
-	//auto depth_image = imread("C:\\OpenARK_test\\CVAR\\P3\\000076_depth_modified.png", IMREAD_ANYDEPTH);
+	//auto depth_image = imread("C:\\OpenARK_test\\CVAR\\P4\\000100_depth.png", IMREAD_ANYDEPTH);
 
-
+	String xyzMap_file_name = file_name.substr(0, 36) + "_modified.png";
 	namedWindow("depth", WINDOW_AUTOSIZE);
 	imshow("depth", depth_image);
 
@@ -73,18 +69,24 @@ void TestCamera::fillInZCoords()
 		{
 			auto depth_value = depth_image.at<uint16_t>(v, u);
 			Point3f p;
-			p.x = ((u - CX)*depth_value*(1.0f / FX)) / 1000.0f;
-			p.y = ((v - CY)*depth_value*(1.0f / FY)) / 1000.0f;
-			p.z = (depth_value) / 1000.0f;
+			if (depth_value > 0 && depth_value!= 32001) { //32001 is invalid depth
+				p.x = ((u - CX)*depth_value*(1.0f / FX)) / 1000.0f;
+				p.y = ((v - CY)*depth_value*(1.0f / FY)) / 1000.0f;
+				p.z = (depth_value) / 1000.0f;
+			}
+			else {
+				p.x = p.y = p.z = 0;
+			}
 			xyzBuffer.emplace_back(p);
 		}
 	}
 
 	xyzMap = Mat(xyzBuffer, true).reshape(3, depth_image.rows);
-	auto xyz_mirror = Mat(xyzBuffer, true).reshape(3, depth_image.rows);
-	cv::flip(xyz_mirror, xyzMap, 1);
-	namedWindow("xyz mirror before", WINDOW_AUTOSIZE);
-	imshow("xyz mirror before", xyz_mirror);
+	namedWindow("xyzMap", WINDOW_AUTOSIZE);
+	imshow("xyzMap", xyzMap);
+	//saving the depth heatmap for improving the manual annotation process
+	imwrite(xyzMap_file_name, xyzMap);
+	//cv::imshow("Depth Image by OpenARK", Visualizer::visualizeDepthMap(xyzMap));
 }
 
 /***

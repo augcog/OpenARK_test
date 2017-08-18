@@ -36,6 +36,13 @@ We have used [**Python3.6**](https://www.continuum.io/downloads) from Continuum 
 
 ----
 
+## TODO
+
+- [ ] We need to modify **annotate_visible_fingertips.txt** so that it shows the modified depth map with heatmap given in each folder of modified CVAR dataset under the name of **xxxxxx_depth_modified.png** image for each corresponding **xxxxxx_depth.png** raw depth image to enhance the accuracy of annotation process. <br />
+- [ ] We would need to use the BigHand2.2M dataset egocentric hand dataset which makes use of the SR300 camera because they use the same exact camera as we do in OpenARK data acquisition. <br />
+- [ ] Possible automation of annotation task by using Amazon Mechanical Turk crowdsouring system to enhance the accuracy of the groundtruth as well as the time it takes to create new dataset based on new images.
+
+----
 ## Credits and references
 
 [Mona Jalal](http://monajalal.com/), [Joseph Menke](https://people.eecs.berkeley.edu/~joemenke/), [Allen Y. Yang](https://people.eecs.berkeley.edu/~yang/), [S. Shankar Sastry](http://robotics.eecs.berkeley.edu/~sastry/).

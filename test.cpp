@@ -8,26 +8,26 @@
 
 // OpenARK Libraries
 #include "TestCamera.h"
-#include "../OpenARK/Visualizer.h"
-#include "../OpenARK/Hand.h"
-#include "../OpenARK/Plane.h"
-#include "../OpenARK/Calibration.h"
-#include "../OpenARK/UDPSender.h"
-#include "../OpenARK/Object3D.h"
-#include "../OpenARK/StreamingAverager.h"
-#include "../OpenARK/global.h"
+#include "../Visualizer.h"
+#include "../Hand.h"
+#include "../Plane.h"
+#include "../Calibration.h"
+#include "../UDPSender.h"
+#include "../Object3D.h"
+#include "../StreamingAverager.h"
+#include "../global.h"
 
 
 using namespace cv;
 
 int main(int argc, char** argv) {
 
-	String path_P1 = "..\\OpenARK_test\\CVAR\\P1\\*_depth.png";
-	String path_P3 = "..\\OpenARK_test\\CVAR\\P3\\*_depth.png";
-	String path_P4 = "..\\OpenARK_test\\CVAR\\P4\\*_depth.png";
-	String path_P5 = "..\\OpenARK_test\\CVAR\\P5\\*_depth.png";
-	String path_P6 = "..\\OpenARK_test\\CVAR\\P6\\*_depth.png";
-	String path_P7 = "..\\OpenARK_test\\CVAR\\P7\\*_depth.png";
+	String path_P1 = "..\\..\\OpenARK_test\\CVAR\\P1\\*_depth.png";
+	String path_P3 = "..\\..\\OpenARK_test\\CVAR\\P3\\*_depth.png";
+	String path_P4 = "..\\..\\OpenARK_test\\CVAR\\P4\\*_depth.png";
+	String path_P5 = "..\\..\\OpenARK_test\\CVAR\\P5\\*_depth.png";
+	String path_P6 = "..\\..\\OpenARK_test\\CVAR\\P6\\*_depth.png";
+	String path_P7 = "..\\..\\OpenARK_test\\CVAR\\P7\\*_depth.png";
 
 	std::vector<String> paths = {path_P1, path_P3, path_P4, path_P5, path_P6, path_P7 };
 

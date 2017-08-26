@@ -3,8 +3,8 @@
 #include <math.h>
 
 //OpenARK include files
-#include "../OpenARK/Visualizer.h"
-#include "../OpenArk/global.h"
+#include "../Visualizer.h"
+#include "../global.h"
 
 //OpenARK_test files
 #include "TestCamera.h"

@@ -4,7 +4,6 @@
 
 //OpenARK include files
 #include "../Visualizer.h"
-#include "../global.h"
 
 //OpenARK_test files
 #include "TestCamera.h"
@@ -42,24 +41,24 @@ void TestCamera::destroyInstance()
 /***
 Create xyzMap, zMap, ampMap, and flagMap from sensor input
 ***/
-void TestCamera::update()
+void TestCamera::update(std::string file_name)
 {
 	initilizeImages();
 	fillInAmps();
-	fillInZCoords();
+	fillInZCoords(file_name);
 }
 
 /***
 Reads the depth data from the sensor and fills in the matrix
 ***/
-void TestCamera::fillInZCoords()
+void TestCamera::fillInZCoords(std::string file_name)
 {	
 	vector<Point3f>  xyzBuffer;
 	auto depth_image = imread(file_name, IMREAD_ANYDEPTH);
 	//if you want to test only a single image uncomment below line
 	//auto depth_image = imread("C:\\OpenARK_test\\CVAR\\P4\\000100_depth.png", IMREAD_ANYDEPTH);
 
-	String xyzMap_file_name = file_name.substr(0, 36) + "_modified.png";
+	std::string xyzMap_file_name = file_name.substr(0, 36) + "_modified.png";
 	namedWindow("depth", WINDOW_AUTOSIZE);
 	imshow("depth", depth_image);
 

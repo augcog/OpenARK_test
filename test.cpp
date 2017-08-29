@@ -12,15 +12,25 @@
 #include "../Hand.h"
 #include "../Plane.h"
 #include "../Calibration.h"
-#include "../UDPSender.h"
 #include "../Object3D.h"
 #include "../StreamingAverager.h"
-#include "../global.h"
-
 
 using namespace cv;
 
 int main(int argc, char** argv) {
+
+	/***
+	 *  Intrinsics for Creative Senz3D camera
+	 *  for CVAR egocentric dataset
+	 */
+	const double FX = 224.501999;
+	const double FY = 230.494003;
+	const double CX = 160.000000;
+	const double CY = 120.000000;
+
+	std::string file_name;// = nullptr;
+	std::ofstream os("..\\..\\OpenARK_test\\fingertips_openark.txt");
+
 
 	String path_P1 = "..\\..\\OpenARK_test\\CVAR\\P1\\*_depth.png";
 	String path_P3 = "..\\..\\OpenARK_test\\CVAR\\P3\\*_depth.png";
@@ -31,7 +41,6 @@ int main(int argc, char** argv) {
 
 	std::vector<String> paths = {path_P1, path_P3, path_P4, path_P5, path_P6, path_P7 };
 
-	camera_name = "test";
 
 	DepthCamera * camera = new TestCamera();
 
@@ -43,14 +52,13 @@ int main(int argc, char** argv) {
 		auto frame = 0;
 		//Calibration::XYZToUnity(*pmd, 4, 4, 3);
 
-		auto u = UDPSender();
 		auto handAverager = StreamingAverager(4, 0.1);
 		auto paleeteAverager = StreamingAverager(6, 0.05);
 
 		for (auto filename : fn)
 		{
 			file_name = filename;
-			camera->update();
+			((TestCamera*)camera)->update(file_name);
 
 			// Loading image from sensor
 			camera->removeNoise();
@@ -85,26 +93,26 @@ int main(int argc, char** argv) {
 			Point paletteCenter(-1. - 1);
 			Mat mask = Mat::zeros(camera->getXYZMap().rows, camera->getXYZMap().cols, CV_8UC1);
 
-			if (planeObjectIndex != -1 && handObjectIndex != -1) 
-			{
-				planeObject = objects[planeObjectIndex];
-				handObject = objects[handObjectIndex];
+			// if (planeObjectIndex != -1 && handObjectIndex != -1) 
+			// {
+			// 	planeObject = objects[planeObjectIndex];
+			// 	handObject = objects[handObjectIndex];
 
-				clicked = handObject.getHand().touchObject(planeObject.getPlane().getPlaneEquation(), planeObject.getPlane().R_SQUARED_DISTANCE_THRESHOLD * 5);
-				auto scene = Visualizer::visualizePlaneRegression(camera->getXYZMap(), planeObject.getPlane().getPlaneEquation(), planeObject.getPlane().R_SQUARED_DISTANCE_THRESHOLD, clicked);
-				//scene = Visualizer::visualizeHand(scene, handObject.getHand().pointer_finger_ij, handObject.getHand().shape_centroid_ij);
-				if (planeObject.leftEdgeConnected)
-				{
-					Visualizer::visualizePlanePoints(mask, planeObject.getPlane().getPlaneIndicies());
-					auto m = moments(mask, false);
-					paletteCenter = Point(m.m10 / m.m00, m.m01 / m.m00);
-					circle(scene, paletteCenter, 2, Scalar(0, 0, 255), 2);
-					paletteFound = true;
-				}
-				namedWindow("Results", CV_WINDOW_AUTOSIZE);
-				imshow("Results", scene);
-			}
-			else if (handObjectIndex != -1) 
+			// 	clicked = handObject.getHand().touchObject(planeObject.getPlane().getPlaneEquation(), planeObject.getPlane().R_SQUARED_DISTANCE_THRESHOLD * 5);
+			// 	auto scene = Visualizer::visualizePlaneRegression(camera->getXYZMap(), planeObject.getPlane().getPlaneEquation(), planeObject.getPlane().R_SQUARED_DISTANCE_THRESHOLD, clicked);
+			// 	//scene = Visualizer::visualizeHand(scene, handObject.getHand().pointer_finger_ij, handObject.getHand().shape_centroid_ij);
+			// 	if (planeObject.leftEdgeConnected)
+			// 	{
+			// 		Visualizer::visualizePlanePoints(mask, planeObject.getPlane().getPlaneIndicies());
+			// 		auto m = moments(mask, false);
+			// 		paletteCenter = Point(m.m10 / m.m00, m.m01 / m.m00);
+			// 		circle(scene, paletteCenter, 2, Scalar(0, 0, 255), 2);
+			// 		paletteFound = true;
+			// 	}
+			// 	namedWindow("Results", CV_WINDOW_AUTOSIZE);
+			// 	imshow("Results", scene);
+			// }
+			if (handObjectIndex != -1) 
 			{
 				handObject = objects[handObjectIndex];
 				if (os.is_open())
@@ -118,65 +126,7 @@ int main(int argc, char** argv) {
 					os << endl;
 				}
 			}
-			else if (planeObjectIndex != -1) 
-			{
-				planeObject = objects[planeObjectIndex];
-				auto scene = Visualizer::visualizePlaneRegression(camera->getXYZMap(), planeObject.getPlane().getPlaneEquation(), planeObject.getPlane().R_SQUARED_DISTANCE_THRESHOLD, clicked);
-				if (planeObject.leftEdgeConnected) {
-					Visualizer::visualizePlanePoints(mask, planeObject.getPlane().getPlaneIndicies());
-					auto m = moments(mask, false);
-					paletteCenter = Point(m.m10 / m.m00, m.m01 / m.m00);
-					circle(scene, paletteCenter, 2, Scalar(0, 0, 255), 2);
-					paletteFound = true;
-				}
-				namedWindow("Results", CV_WINDOW_AUTOSIZE);
-				imshow("Results", scene);
-			}
-
-			// Organize the data and send to game engine
-			std::string handX = "-", handY = "-", handZ = "-";
-			std::string paletteX = "-", paletteY = "-", paletteZ = "-";
-			std::string clickStatus = "2";
-			std::string num_fingers = "0";
-			if (handObjectIndex != -1) 
-			{
-				auto handPos = handAverager.addDataPoint(objects[handObjectIndex].getHand().fingers_xyz[0]);
-				//float hand_pt[3] = { objects[handObjectIndex].getHand().pointer_finger_xyz[0], objects[handObjectIndex].getHand().pointer_finger_xyz[1], objects[handObjectIndex].getHand().pointer_finger_xyz[2]};
-				float hand_pt[3] = { handPos[0], handPos[1], handPos[2] };
-				auto hand_mat = Mat(3, 1, CV_32FC1, &hand_pt);
-				//hand_mat = r*hand_mat + t;
-				handX = std::to_string(hand_mat.at<float>(0, 0));
-				handY = std::to_string(hand_mat.at<float>(1, 0));
-				handZ = std::to_string(hand_mat.at<float>(2, 0));
-				num_fingers = std::to_string(objects[handObjectIndex].getHand().fingers_xyz.size());
-			}
-			else
-			{
-				handAverager.addEmptyPoint();
-			}
-			if (paletteFound)
-			{
-				auto pt = paleeteAverager.addDataPoint(camera->getXYZMap().at<Vec3f>(paletteCenter.y, paletteCenter.x));
-				float palette_pt[3] = { pt[0], pt[1], pt[2] };
-				auto palette_mat = Mat(3, 1, CV_32FC1, &palette_pt);
-				//palette_mat = r*palette_mat + t;
-				paletteX = std::to_string(palette_mat.at<float>(0, 0));
-				paletteY = std::to_string(palette_mat.at<float>(1, 0));
-				paletteZ = std::to_string(palette_mat.at<float>(2, 0));
-			}
-			else 
-			{
-				paleeteAverager.addEmptyPoint();
-			}
-			if (clicked) 
-			{
-				clickStatus = "1";
-			}
-
-			std::string tempS = "";
-			tempS = handX + "%" + handY + "%" + handZ + "%" + paletteX + "%" + paletteY + "%" + paletteZ + "%" + clickStatus + "%" + num_fingers;
-			u.send(tempS);
-
+	
 			/**** Start: Loop Break Condition ****/
 			auto c = waitKey(1);
 			if (c == 'q' || c == 'Q' || c == 27) {

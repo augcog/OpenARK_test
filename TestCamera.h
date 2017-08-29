@@ -28,17 +28,22 @@ public:
 	~TestCamera();
 
 	/**
+	* Replacement update function for reading from file
+	* @param file_name file to read from
+	*/
+	void update(std::string file_name);
+
+	/**
 	* Gets new frame from sensor.
 	* Updates xyzMap, ampMap, and flagMap. Resets clusters.
 	*/
 	
-	void fillInZCoords();
+	void fillInZCoords(std::string file_name);
 
 	/**
 	* Gracefully closes the SR300 camera.
 	*/
 	void destroyInstance() override;
-	void update();
 
 private:
 	/**
@@ -79,5 +84,13 @@ private:
 	int depth_width;
 	int depth_height;
 	cv::Size bufferSize;
+	/***
+	 *  Intrinsics for Creative Senz3D camera
+	 *  for CVAR egocentric dataset
+	 */
+	const double FX = 224.501999;
+	const double FY = 230.494003;
+	const double CX = 160.000000;
+	const double CY = 120.000000;
 	
 };

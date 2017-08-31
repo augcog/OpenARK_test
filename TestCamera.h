@@ -17,10 +17,16 @@ class TestCamera : public DepthCamera
 public:
 
 	/**
-	* Public constructor initializing the SR300 Camera.
-	* @param use_live_sensor uses input from real sensor if TRUE. Otherwise reads from input file. Default is set to TRUE.
+	* Public constructor initializing the Test Camera.
+	* @param FX value is intrinsics matrix
+	* @param FY value is intrinsics matrix		
+	* @param CX value is intrinsics matrix
+	* @param CY value is intrinsics matrix
 	*/
-	explicit TestCamera(bool use_live_sensor = true);
+	explicit TestCamera(int width, int height, double FX, double FY, double CX, double CY);
+
+
+
 
 	/**
 	* Deconstructor for the SR300 Camera.
@@ -88,9 +94,9 @@ private:
 	 *  Intrinsics for Creative Senz3D camera
 	 *  for CVAR egocentric dataset
 	 */
-	const double FX = 224.501999;
-	const double FY = 230.494003;
-	const double CX = 160.000000;
-	const double CY = 120.000000;
+	const double FX;
+	const double FY;
+	const double CX;
+	const double CY;
 	
 };

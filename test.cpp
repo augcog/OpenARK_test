@@ -23,10 +23,10 @@ int main(int argc, char** argv) {
 	if(argc==2){
 		dataset_dir = std::string(argv[1]);
 	}else if(argc>2){
-		printf("Usage: \n %s <dataset_dir>\n",argv[0]);
+		printf("Usage: \n %s <dataset_dir>\n <dataset_dir> should be the directiory containing the CVAR folder",argv[0]);
 		return 0;
 	}else{
-		dataset_dir = "..\\..\\OpenARK_test\\CVAR";
+		dataset_dir = "..\\..\\OpenARK_test";
 	}
 
 	/***
@@ -49,35 +49,36 @@ int main(int argc, char** argv) {
 	 */
 	const int Y_DIMENSION = 240;
 
-	const double VISIBLE_THRESHOLD = 25;
-	const double ACCEPTED_THRESHOLD = 20;
+	const double VISIBLE_THRESHOLD = 25; //distance in mm difference in depth from ground truth to be considered occluded
+	const double ACCEPTED_THRESHOLD = 20; //maximum distance in pixels to be accepted as a correct prediction
 
 
-	std::string file_name;
-	std::ofstream os("..\\..\\OpenARK_test\\fingertips_openark.txt");
-
-
-	std::string path_P1 = dataset_dir+"\\P1\\";
-	std::string path_P3 = dataset_dir+"\\P3\\";
-	std::string path_P4 = dataset_dir+"\\P4\\";
-	std::string path_P5 = dataset_dir+"\\P5\\";
-	std::string path_P6 = dataset_dir+"\\P6\\";
-	std::string path_P7 = dataset_dir+"\\P7\\";
+	std::string path_P1 = dataset_dir+"\\CVAR\\P1\\";
+	std::string path_P3 = dataset_dir+"\\CVAR\\P3\\";
+	std::string path_P4 = dataset_dir+"\\CVAR\\P4\\";
+	std::string path_P5 = dataset_dir+"\\CVAR\\P5\\";
+	std::string path_P6 = dataset_dir+"\\CVAR\\P6\\";
+	std::string path_P7 = dataset_dir+"\\CVAR\\P7\\";
 
 	std::vector<String> paths = {path_P1, path_P3, path_P4, path_P5, path_P6, path_P7 };
 
+	std::vector<int> fingertip_indices = {48,36,24,12,60}; //these are the positons of the fingertips in the joints file
+
 	//setup test camera
 	DepthCamera * camera = new TestCamera(X_DIMENSION, Y_DIMENSION, FX,FY,CX,CY);
+
+	//image file to load
+	std::string img_file_name;
 
 	for (auto path : paths) 
 	{
 		int detected_fingertips(0), total_fingertips(0);
 
-		//The fingertips file contains the images and fingertips 
+		//The joints file contains the images and joint positions
 		//that we want to compare to for each folder
-		std::ifstream fingertips_file;
-		fingertips_file.open(path+"fingertips.txt");
-		if(!fingertips_file.is_open()){
+		std::ifstream joints_file;
+		joints_file.open(path+"joint.txt");
+		if(!joints_file.is_open()){
 			continue;
 		}
 		// Setup OpenARK
@@ -87,22 +88,25 @@ int main(int argc, char** argv) {
 		auto paleeteAverager = StreamingAverager(6, 0.05);
 		
 		// Read each line in the fingertips file
-		char buffer[1024];
-		fingertips_file.getline(buffer,1024);
-		while(!fingertips_file.eof())
+		char buffer[2048];
+		// First line is just number of images
+		joints_file.getline(buffer,1024); 
+		// We don't care about number of images so read next line
+		joints_file.getline(buffer,1024); 
+		while(!joints_file.eof())
 		{
 			// Extract image name from line
 			std::vector<std::string> elems = Util::split(buffer," \n");
-			file_name = path+elems[0];
+			img_file_name = dataset_dir+"\\"+elems[0];
 
 			// Create fingertips vector from remaining elements
-			std::vector<cv::Vec3f> fingertips(5);
-			for(int i =0; i <5; i++){
-				fingertips[i] = cv::Vec3f(stod(elems[1+3*i]),stod(elems[2+3*i]),stod(elems[3+3*i]));
+			std::vector<cv::Vec3f> fingertips;
+			for(auto i : fingertip_indices){
+				fingertips.push_back(cv::Vec3f(stod(elems[1+i]),stod(elems[2+i]),stod(elems[3+i])));
 			}
 
 			// Load Image
-			((TestCamera*)camera)->update(file_name);
+			((TestCamera*)camera)->update(img_file_name);
 
 			// Clean
 			camera->removeNoise();
@@ -175,10 +179,10 @@ int main(int argc, char** argv) {
 			}
 			/**** End: Loop Break Condition ****/
 			frame++;
-			fingertips_file.getline(buffer,1024);
+			joints_file.getline(buffer,1024);
 		}
 
-		printf("Percent Correct: %f\n", detected_fingertips/(float)total_fingertips);
+		printf("Percent Correct for %s: %f\n", path.c_str(), detected_fingertips/(float)total_fingertips);
 	} //for (String path:paths)
 
 	camera->destroyInstance();

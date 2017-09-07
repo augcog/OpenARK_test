@@ -8,61 +8,117 @@
 
 // OpenARK Libraries
 #include "TestCamera.h"
-#include "../OpenARK/Visualizer.h"
-#include "../OpenARK/Hand.h"
-#include "../OpenARK/Plane.h"
-#include "../OpenARK/Calibration.h"
-#include "../OpenARK/UDPSender.h"
-#include "../OpenARK/Object3D.h"
-#include "../OpenARK/StreamingAverager.h"
-#include "../OpenARK/global.h"
-
+#include "../Visualizer.h"
+#include "../Hand.h"
+#include "../Plane.h"
+#include "../Calibration.h"
+#include "../Object3D.h"
+#include "../StreamingAverager.h"
 
 using namespace cv;
 
 int main(int argc, char** argv) {
 
-	String path_P1 = "..\\OpenARK_test\\CVAR\\P1\\*_depth.png";
-	String path_P3 = "..\\OpenARK_test\\CVAR\\P3\\*_depth.png";
-	String path_P4 = "..\\OpenARK_test\\CVAR\\P4\\*_depth.png";
-	String path_P5 = "..\\OpenARK_test\\CVAR\\P5\\*_depth.png";
-	String path_P6 = "..\\OpenARK_test\\CVAR\\P6\\*_depth.png";
-	String path_P7 = "..\\OpenARK_test\\CVAR\\P7\\*_depth.png";
+	std::string dataset_dir;
+	if(argc==2){
+		dataset_dir = std::string(argv[1]);
+	}else if(argc>2){
+		printf("Usage: \n %s <dataset_dir>\n <dataset_dir> should be the directiory containing the CVAR folder",argv[0]);
+		return 0;
+	}else{
+		dataset_dir = "..\\..\\OpenARK_test";
+	}
+
+	/***
+	 *  Intrinsics for Creative Senz3D camera
+	 *  for CVAR egocentric dataset
+	 */
+	const double FX = 224.501999;
+	const double FY = 230.494003;
+	const double CX = 160.000000;
+	const double CY = 120.000000;
+
+	/**
+	 * The image width resolution (pixels) that the depth sensor produces.
+	 */
+	const int X_DIMENSION = 321;
+
+
+	/**
+	 * The image height resolution (pixels) that the depth sensor produces.
+	 */
+	const int Y_DIMENSION = 240;
+
+	const double VISIBLE_THRESHOLD = 25; //distance in mm difference in depth from ground truth to be considered occluded
+	const double ACCEPTED_THRESHOLD = 20; //maximum distance in pixels to be accepted as a correct prediction
+
+
+	std::string path_P1 = dataset_dir+"\\CVAR\\P1\\";
+	std::string path_P3 = dataset_dir+"\\CVAR\\P3\\";
+	std::string path_P4 = dataset_dir+"\\CVAR\\P4\\";
+	std::string path_P5 = dataset_dir+"\\CVAR\\P5\\";
+	std::string path_P6 = dataset_dir+"\\CVAR\\P6\\";
+	std::string path_P7 = dataset_dir+"\\CVAR\\P7\\";
 
 	std::vector<String> paths = {path_P1, path_P3, path_P4, path_P5, path_P6, path_P7 };
 
-	camera_name = "test";
+	std::vector<int> fingertip_indices = {48,36,24,12,60}; //these are the positons of the fingertips in the joints file
 
-	DepthCamera * camera = new TestCamera();
+	//setup test camera
+	DepthCamera * camera = new TestCamera(X_DIMENSION, Y_DIMENSION, FX,FY,CX,CY);
+
+	//image file to load
+	std::string img_file_name;
 
 	for (auto path : paths) 
 	{
-		std::vector<String> fn;
-		glob(path, fn, false);
+		int detected_fingertips(0), total_fingertips(0);
+
+		//The joints file contains the images and joint positions
+		//that we want to compare to for each folder
+		std::ifstream joints_file;
+		joints_file.open(path+"joint.txt");
+		if(!joints_file.is_open()){
+			continue;
+		}
+		// Setup OpenARK
 		auto starttime = clock();
 		auto frame = 0;
-		//Calibration::XYZToUnity(*pmd, 4, 4, 3);
-
-		auto u = UDPSender();
 		auto handAverager = StreamingAverager(4, 0.1);
 		auto paleeteAverager = StreamingAverager(6, 0.05);
-
-		for (auto filename : fn)
+		
+		// Read each line in the fingertips file
+		char buffer[2048];
+		// First line is just number of images
+		joints_file.getline(buffer,1024); 
+		// We don't care about number of images so read next line
+		joints_file.getline(buffer,1024); 
+		while(!joints_file.eof())
 		{
-			file_name = filename;
-			camera->update();
+			// Extract image name from line
+			std::vector<std::string> elems = Util::split(buffer," \n");
+			img_file_name = dataset_dir+"\\"+elems[0];
 
-			// Loading image from sensor
+			// Create fingertips vector from remaining elements
+			std::vector<cv::Vec3f> fingertips;
+			for(auto i : fingertip_indices){
+				fingertips.push_back(cv::Vec3f(stod(elems[1+i]),stod(elems[2+i]),stod(elems[3+i])));
+			}
+
+			// Load Image
+			((TestCamera*)camera)->update(img_file_name);
+
+			// Clean
 			camera->removeNoise();
 			if (camera->badInput) {
 				waitKey(10);
 			}
 			
-			// Classifying objects in the scene
+			// Classify objects in the scene
 			camera->computeClusters(0.02, 500);
 			auto clusters = camera->getClusters();
 			std::vector<Object3D> objects;
-			auto handObjectIndex = -1, planeObjectIndex = -1;
+			auto handObjectIndex = -1;
 			for (auto i = 0; i < clusters.size(); i++) 
 			{
 				auto obj = Object3D(clusters[i].clone());
@@ -72,119 +128,61 @@ int main(int argc, char** argv) {
 					handObjectIndex = i;
 				}
 
-				if (obj.hasPlane)
-				{
-					planeObjectIndex = i;
-				}
 				objects.push_back(obj);
 			}
 
-			// Interprate the relationship between the objects
-			auto clicked = false, paletteFound = false;
-			Object3D handObject, planeObject;
-			Point paletteCenter(-1. - 1);
-			Mat mask = Mat::zeros(camera->getXYZMap().rows, camera->getXYZMap().cols, CV_8UC1);
-
-			if (planeObjectIndex != -1 && handObjectIndex != -1) 
-			{
-				planeObject = objects[planeObjectIndex];
-				handObject = objects[handObjectIndex];
-
-				clicked = handObject.getHand().touchObject(planeObject.getPlane().getPlaneEquation(), planeObject.getPlane().R_SQUARED_DISTANCE_THRESHOLD * 5);
-				auto scene = Visualizer::visualizePlaneRegression(camera->getXYZMap(), planeObject.getPlane().getPlaneEquation(), planeObject.getPlane().R_SQUARED_DISTANCE_THRESHOLD, clicked);
-				//scene = Visualizer::visualizeHand(scene, handObject.getHand().pointer_finger_ij, handObject.getHand().shape_centroid_ij);
-				if (planeObject.leftEdgeConnected)
-				{
-					Visualizer::visualizePlanePoints(mask, planeObject.getPlane().getPlaneIndicies());
-					auto m = moments(mask, false);
-					paletteCenter = Point(m.m10 / m.m00, m.m01 / m.m00);
-					circle(scene, paletteCenter, 2, Scalar(0, 0, 255), 2);
-					paletteFound = true;
-				}
-				namedWindow("Results", CV_WINDOW_AUTOSIZE);
-				imshow("Results", scene);
-			}
-			else if (handObjectIndex != -1) 
-			{
-				handObject = objects[handObjectIndex];
-				if (os.is_open())
-				{
-					os << file_name << " "; 
-					int num_fingers = handObject.getHand().fingers_xyz.size();
-					for (auto i = 0; i <num_fingers ; i++)
-					{
-						os << FX * (handObject.getHand().fingers_xyz[i][0] / handObject.getHand().fingers_xyz[i][2]) + CX << " " << FY * (handObject.getHand().fingers_xyz[i][1] / handObject.getHand().fingers_xyz[i][2]) + CY << " " << handObject.getHand().fingers_xyz[i][2] * 1000 << " ";
-					}
-					os << endl;
-				}
-			}
-			else if (planeObjectIndex != -1) 
-			{
-				planeObject = objects[planeObjectIndex];
-				auto scene = Visualizer::visualizePlaneRegression(camera->getXYZMap(), planeObject.getPlane().getPlaneEquation(), planeObject.getPlane().R_SQUARED_DISTANCE_THRESHOLD, clicked);
-				if (planeObject.leftEdgeConnected) {
-					Visualizer::visualizePlanePoints(mask, planeObject.getPlane().getPlaneIndicies());
-					auto m = moments(mask, false);
-					paletteCenter = Point(m.m10 / m.m00, m.m01 / m.m00);
-					circle(scene, paletteCenter, 2, Scalar(0, 0, 255), 2);
-					paletteFound = true;
-				}
-				namedWindow("Results", CV_WINDOW_AUTOSIZE);
-				imshow("Results", scene);
-			}
-
-			// Organize the data and send to game engine
-			std::string handX = "-", handY = "-", handZ = "-";
-			std::string paletteX = "-", paletteY = "-", paletteZ = "-";
-			std::string clickStatus = "2";
-			std::string num_fingers = "0";
+			Object3D handObject;
+			cv::Mat xyz = camera->getXYZMap();
 			if (handObjectIndex != -1) 
 			{
-				auto handPos = handAverager.addDataPoint(objects[handObjectIndex].getHand().fingers_xyz[0]);
-				//float hand_pt[3] = { objects[handObjectIndex].getHand().pointer_finger_xyz[0], objects[handObjectIndex].getHand().pointer_finger_xyz[1], objects[handObjectIndex].getHand().pointer_finger_xyz[2]};
-				float hand_pt[3] = { handPos[0], handPos[1], handPos[2] };
-				auto hand_mat = Mat(3, 1, CV_32FC1, &hand_pt);
-				//hand_mat = r*hand_mat + t;
-				handX = std::to_string(hand_mat.at<float>(0, 0));
-				handY = std::to_string(hand_mat.at<float>(1, 0));
-				handZ = std::to_string(hand_mat.at<float>(2, 0));
-				num_fingers = std::to_string(objects[handObjectIndex].getHand().fingers_xyz.size());
+				handObject = objects[handObjectIndex];
+				int num_fingers = handObject.getHand().fingers_xyz.size();
+				for(int i = 0; i < 5; i++){
+					//Check if the fingertip is visible
+					if(fingertips[i][2] <= xyz.at<cv::Vec3f>((int)fingertips[i][1],(int)fingertips[i][0])[2]*1000+VISIBLE_THRESHOLD){
+						//circle(xyz, Point((int)fingertips[i][0],(int)fingertips[i][1]), 3, Scalar(255, 0, 0), 2);
+						double mindist = ACCEPTED_THRESHOLD;
+						cv::Point their_point((int)fingertips[i][0],(int)fingertips[i][1]);
+						for (auto j = 0; j <num_fingers ; j++)
+						{
+							cv::Point our_point( 
+								FX * (handObject.getHand().fingers_xyz[j][0] / handObject.getHand().fingers_xyz[j][2]) + CX,
+							 	FY * (handObject.getHand().fingers_xyz[j][1] / handObject.getHand().fingers_xyz[j][2]) + CY);
+							
+							double dist = Util::euclideanDistance2D(our_point,their_point);
+							if(dist<mindist)
+								mindist=dist;
+						}
+						if(mindist<ACCEPTED_THRESHOLD){
+							detected_fingertips++;
+						}
+						total_fingertips++;
+					}
+				}
+			}else{
+				for(int i = 0; i < 5; i++){
+					//Check if the fingertip is visible
+					if(fingertips[i][2] <= xyz.at<cv::Vec3f>((int)fingertips[i][1],(int)fingertips[i][0])[2]*1000+VISIBLE_THRESHOLD){
+						//circle(xyz, Point((int)fingertips[i][0],(int)fingertips[i][1]), 3, Scalar(255, 0, 0), 2);
+						total_fingertips++;
+					}
+				}
 			}
-			else
-			{
-				handAverager.addEmptyPoint();
-			}
-			if (paletteFound)
-			{
-				auto pt = paleeteAverager.addDataPoint(camera->getXYZMap().at<Vec3f>(paletteCenter.y, paletteCenter.x));
-				float palette_pt[3] = { pt[0], pt[1], pt[2] };
-				auto palette_mat = Mat(3, 1, CV_32FC1, &palette_pt);
-				//palette_mat = r*palette_mat + t;
-				paletteX = std::to_string(palette_mat.at<float>(0, 0));
-				paletteY = std::to_string(palette_mat.at<float>(1, 0));
-				paletteZ = std::to_string(palette_mat.at<float>(2, 0));
-			}
-			else 
-			{
-				paleeteAverager.addEmptyPoint();
-			}
-			if (clicked) 
-			{
-				clickStatus = "1";
-			}
-
-			std::string tempS = "";
-			tempS = handX + "%" + handY + "%" + handZ + "%" + paletteX + "%" + paletteY + "%" + paletteZ + "%" + clickStatus + "%" + num_fingers;
-			u.send(tempS);
-
+			//imshow("test",xyz);
+	
 			/**** Start: Loop Break Condition ****/
 			auto c = waitKey(1);
 			if (c == 'q' || c == 'Q' || c == 27) {
-				break;
+				camera->destroyInstance();
+				destroyAllWindows();
+				return 0;
 			}
 			/**** End: Loop Break Condition ****/
 			frame++;
+			joints_file.getline(buffer,1024);
 		}
+
+		printf("Percent Correct for %s: %f\n", path.c_str(), detected_fingertips/(float)total_fingertips);
 	} //for (String path:paths)
 
 	camera->destroyInstance();

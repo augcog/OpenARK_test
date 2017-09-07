@@ -3,7 +3,7 @@
 #include <opencv2/opencv.hpp>
 
 // OpenARK Libraries
-#include "../OpenARK/DepthCamera.h"
+#include "../DepthCamera.h"
 
 //using namespace Intel::RealSense;
 
@@ -17,10 +17,16 @@ class TestCamera : public DepthCamera
 public:
 
 	/**
-	* Public constructor initializing the SR300 Camera.
-	* @param use_live_sensor uses input from real sensor if TRUE. Otherwise reads from input file. Default is set to TRUE.
+	* Public constructor initializing the Test Camera.
+	* @param FX value is intrinsics matrix
+	* @param FY value is intrinsics matrix		
+	* @param CX value is intrinsics matrix
+	* @param CY value is intrinsics matrix
 	*/
-	explicit TestCamera(bool use_live_sensor = true);
+	explicit TestCamera(int width, int height, double FX, double FY, double CX, double CY);
+
+
+
 
 	/**
 	* Deconstructor for the SR300 Camera.
@@ -28,17 +34,22 @@ public:
 	~TestCamera();
 
 	/**
+	* Replacement update function for reading from file
+	* @param file_name file to read from
+	*/
+	void update(std::string file_name);
+
+	/**
 	* Gets new frame from sensor.
 	* Updates xyzMap, ampMap, and flagMap. Resets clusters.
 	*/
 	
-	void fillInZCoords();
+	void fillInZCoords(std::string file_name);
 
 	/**
 	* Gracefully closes the SR300 camera.
 	*/
 	void destroyInstance() override;
-	void update();
 
 private:
 	/**
@@ -79,5 +90,13 @@ private:
 	int depth_width;
 	int depth_height;
 	cv::Size bufferSize;
+	/***
+	 *  Intrinsics for Creative Senz3D camera
+	 *  for CVAR egocentric dataset
+	 */
+	const double FX;
+	const double FY;
+	const double CX;
+	const double CY;
 	
 };
